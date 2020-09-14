@@ -265,10 +265,14 @@ class Settings(object):
 
     def __setattr__(self, name, value):
         """Allow `settings.FOO = 'value'` and deal with `_deleted`"""
-        try:
+        with suppress(AttributeError):
             self._deleted.discard(name)
-        except AttributeError:
-            pass
+
+        if name not in RESERVED_ATTRS + dir(default_settings):
+            self.set(
+                name, value, do_setattr=False  # avoids infinite recursion
+            )
+            name = upperfy(name)
 
         super(Settings, self).__setattr__(name, value)
 
@@ -780,6 +784,7 @@ class Settings(object):
         dotted_lookup=True,
         is_secret=False,
         merge=False,
+        do_setattr=True,
     ):
         """Set a value storing references for the loader
 
@@ -789,6 +794,7 @@ class Settings(object):
         :param tomlfy: Bool define if value is parsed by toml (defaults False)
         :param is_secret: Bool define if secret values is hidden on logs.
         :param merge: Bool define if existing nested data will be merged.
+        :param do_setattr: Bool to make it call setattr after settings.
         """
         nested_sep = self.get("NESTED_SEPARATOR_FOR_DYNACONF")
         if nested_sep and nested_sep in key:
@@ -832,7 +838,9 @@ class Settings(object):
         if isinstance(value, dict):
             value = DynaBox(value, box_settings=self)
 
-        setattr(self, key, value)
+        if do_setattr:
+            setattr(self, key, value)
+
         self.store[key] = value
         self._deleted.discard(key)
 
