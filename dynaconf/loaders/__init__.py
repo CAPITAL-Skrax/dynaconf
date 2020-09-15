@@ -27,7 +27,6 @@ def default_loader(obj, defaults=None):
     all_keys = deduplicate(
         list(defaults.keys()) + list(default_settings_values.keys())
     )
-
     for key in all_keys:
         if not obj.exists(key):
             value = defaults.get(key, default_settings_values.get(key))

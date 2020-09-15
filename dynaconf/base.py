@@ -270,7 +270,7 @@ class Settings(object):
 
         if name not in RESERVED_ATTRS + dir(default_settings):
             self.set(
-                name, value, do_setattr=False  # avoids infinite recursion
+                name, value, loader_identifier="setattr",
             )
             name = upperfy(name)
 
@@ -278,8 +278,8 @@ class Settings(object):
 
     def __delattr__(self, name):
         """stores reference in `_deleted` for proper error management"""
-        self._deleted.add(name)
         if hasattr(self, name):
+            self._deleted.add(name)
             super(Settings, self).__delattr__(name)
 
     def __contains__(self, item):
@@ -418,7 +418,7 @@ class Settings(object):
             fresh
             or self._fresh
             or key in getattr(self, "FRESH_VARS_FOR_DYNACONF", ())
-        ) and key not in dir(default_settings):
+        ) and key not in RESERVED_ATTRS + dir(default_settings):
             self.unset(key)
             self.execute_loaders(key=key)
 
@@ -726,8 +726,9 @@ class Settings(object):
         """
         key = upperfy(key.strip())
         if (
-            key not in dir(default_settings)
+            key not in RESERVED_ATTRS + dir(default_settings)
             and key not in self._defaults
+            and key in self
             or force
         ):
             delattr(self, key)
@@ -784,7 +785,6 @@ class Settings(object):
         dotted_lookup=True,
         is_secret=False,
         merge=False,
-        do_setattr=True,
     ):
         """Set a value storing references for the loader
 
@@ -794,7 +794,6 @@ class Settings(object):
         :param tomlfy: Bool define if value is parsed by toml (defaults False)
         :param is_secret: Bool define if secret values is hidden on logs.
         :param merge: Bool define if existing nested data will be merged.
-        :param do_setattr: Bool to make it call setattr after settings.
         """
         nested_sep = self.get("NESTED_SEPARATOR_FOR_DYNACONF")
         if nested_sep and nested_sep in key:
@@ -838,7 +837,8 @@ class Settings(object):
         if isinstance(value, dict):
             value = DynaBox(value, box_settings=self)
 
-        if do_setattr:
+        if loader_identifier != "setattr":
+            # avoids infinite recursion
             setattr(self, key, value)
 
         self.store[key] = value

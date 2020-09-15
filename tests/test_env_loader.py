@@ -120,15 +120,19 @@ def test_get_fresh():
     # loaders run only once
     assert settings.get("THISMUSTEXIST") == 1
 
-    environ["DYNACONF_THISMUSTEXIST"] = "@int 23"
-    del environ["DYNACONF_THISMUSTEXIST"]
-    # this should error because envvar got cleaned
-    # but it is not, so cleaners should be fixed
-    assert settings.get_fresh("THISMUSTEXIST") is None
+    # first we set something
+    os.environ["DYNACONF_SOMETHING"] = "this exists"
+    # then we load it freshly
+    assert settings.get_fresh("SOMETHING") == "this exists"
+    # then we remove it from environment
+    del os.environ["DYNACONF_SOMETHING"]
+    settings._store["venom"] = True
+    # then we read it freshly again
+    assert settings.get_fresh("SOMETHING") is None
     with pytest.raises(AttributeError):
-        settings.THISMUSTEXIST
+        settings.SOMETHING
     with pytest.raises(KeyError):
-        settings["THISMUSTEXIST"]
+        settings["SOMETHING"]
 
     environ["DYNACONF_THISMUSTEXIST"] = "@int 23"
     load(settings)
